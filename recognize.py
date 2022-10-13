@@ -105,9 +105,9 @@ def predict_chessboard(chessboard_img_path):
         '/'.join([''.join(r) for r in np.reshape([p[0] for p in predictions], [8, 8])])
     )
     confidence = reduce(lambda x,y: x*y, [p[1] for p in predictions])
-    #_save_output_html(chessboard_img_path, predicted_fen, [p[1] for p in predictions], confidence)
     
-    return {"file": os.path.basename(chessboard_img_path), "confidence": confidence, "fen": predicted_fen}
+    return {"file": os.path.basename(chessboard_img_path), "confidence": confidence, 
+            "tile_prob": predictions, "fen": predicted_fen}
 
 
 if __name__ == '__main__':
@@ -130,4 +130,10 @@ if __name__ == '__main__':
 
         image_path = os.path.expanduser(args.image_path)
         for chessboard_image_path in sorted(glob(image_path)):
-            print(predict_chessboard(chessboard_image_path))
+            p = predict_chessboard(chessboard_image_path)
+            confidence = p['confidence']
+            fen = p['fen']
+            print(f"File: {p['file']}, confidence: {confidence:0.08f} fen: {fen}")
+
+            img = os.path.join('data', os.path.basename(chessboard_image_path))
+            _save_output_html(img, fen, [t[1] for t in p['tile_prob']], confidence)

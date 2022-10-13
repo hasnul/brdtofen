@@ -8,3 +8,4 @@ __pycache__
 model.tf
 images/chessboards
 images/tiles
+data
