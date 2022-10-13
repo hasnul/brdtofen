@@ -98,14 +98,13 @@ def predict_chessboard(chessboard_img_path, options={}):
             [''.join(r) for r in np.reshape([p[0] for p in predictions], [8, 8])]
         )
     )
-    if not options.quiet:
-        confidence = reduce(lambda x,y: x*y, [p[1] for p in predictions])
-        print("Confidence: {}".format(confidence))
-    # if options.debug:
-    print("https://lichess.org/editor/{}".format(predicted_fen))
+    confidence = reduce(lambda x,y: x*y, [p[1] for p in predictions])
     _save_output_html(chessboard_img_path, predicted_fen, [p[1] for p in predictions], confidence)
-    print("Saved {} prediction to {}".format(chessboard_img_path, OUT_FILE))
-    return predicted_fen
+    
+    if not options.quiet:
+        print("Saved {} prediction to {}".format(chessboard_img_path, OUT_FILE))
+
+    return {"confidence": confidence, "fen": predicted_fen}
 
 def predict_tile(tile_img_data):
     """ Given the image data of a tile, try to determine what piece
@@ -127,15 +126,22 @@ if __name__ == '__main__':
                         action="store_true")
     parser.add_argument("image_path", help="Path/glob to PNG chessboard image(s)")
     args = parser.parse_args()
+
     if not args.quiet:
         print('Tensorflow {}'.format(tf.version.VERSION))
+
     model = models.load_model(NN_MODEL_PATH)
+
     # tile_img_path = glob(TILES_DIR + '/*/*.png')[0]
     # print(tile_img_path)
     # print(predict_tile(image_data(tile_img_path)))
+
     if len(sys.argv) > 1:
+
         with open(OUT_FILE, "w") as f:
             f.write('<link rel="stylesheet" href="./web/style.css" />')
-        for chessboard_image_path in sorted(glob(args.image_path)):
+
+        image_path = os.path.expanduser(args.image_path)
+        for chessboard_image_path in sorted(glob(image_path)):
             print(predict_chessboard(chessboard_image_path, args))
 
