@@ -22,6 +22,7 @@ from chessboard_image import get_chessboard_tiles
 
 OUT_FILE = "debug.html"
 
+
 def _chessboard_tiles_img_data(chessboard_img_path, options={}):
     """ Given a file path to a chessboard PNG image, returns a
         size-64 array of 32x32 tiles representing each square of a chessboard
@@ -38,6 +39,7 @@ def _chessboard_tiles_img_data(chessboard_img_path, options={}):
         img_data_list.append(img_data)
     return img_data_list
 
+
 def _confidence_color(confidence):
     if confidence >= 0.999:
         return "#00C176"
@@ -49,6 +51,7 @@ def _confidence_color(confidence):
         return "#FF8A00"
     else:
         return "#FF003C"
+
 
 def _save_output_html(chessboard_img_path, fen, predictions, confidence):
     confidence_color = _confidence_color(confidence)
@@ -77,6 +80,7 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
     with open(OUT_FILE, "a") as f:
         f.write(html)
 
+
 def predict_chessboard(chessboard_img_path, options={}):
     """ Given a file path to a chessboard PNG image,
         Returns a FEN string representation of the chessboard
@@ -104,7 +108,8 @@ def predict_chessboard(chessboard_img_path, options={}):
     if not options.quiet:
         print("Saved {} prediction to {}".format(chessboard_img_path, OUT_FILE))
 
-    return {"confidence": confidence, "fen": predicted_fen}
+    return {"file": os.path.basename(chessboard_img_path), "confidence": confidence, "fen": predicted_fen}
+
 
 def predict_tile(tile_img_data):
     """ Given the image data of a tile, try to determine what piece
@@ -116,6 +121,7 @@ def predict_tile(tile_img_data):
     max_probability = max(probabilities)
     i = probabilities.index(max_probability)
     return (FEN_CHARS[i], max_probability)
+
 
 if __name__ == '__main__':
     import argparse
