@@ -4,6 +4,7 @@ import sys
 from glob import glob
 from io import BytesIO
 from functools import reduce
+from multiprocessing import Pool
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -129,11 +130,15 @@ if __name__ == '__main__':
             f.write('<link rel="stylesheet" href="./web/style.css" />')
 
         image_path = os.path.expanduser(args.image_path)
-        for chessboard_image_path in sorted(glob(image_path)):
-            p = predict_chessboard(chessboard_image_path)
-            confidence = p['confidence']
-            fen = p['fen']
-            print(f"File: {p['file']}, confidence: {confidence:0.08f} fen: {fen}")
+        paths = [path for path in glob(image_path)]
+        with Pool() as pool:
+            results = pool.imap_unordered(predict_chessboard, paths)
 
-            img = os.path.join('data', os.path.basename(chessboard_image_path))
-            _save_output_html(img, fen, [t[1] for t in p['tile_prob']], confidence)
+            for r in results:
+                confidence = r['confidence']
+                fen = r['fen']
+                print(f"File: {r['file']}, confidence: {confidence:0.08f} fen: {fen}")
+
+                img = os.path.join('data', r['file'])
+            
+                _save_output_html(img, fen, [t[1] for t in r['tile_prob']], confidence)
