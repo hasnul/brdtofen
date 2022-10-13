@@ -6,10 +6,13 @@ from io import BytesIO
 from functools import reduce
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 import tensorflow as tf
 from tensorflow.keras import models
 import numpy as np
+import logging
+tf.get_logger().setLevel(logging.ERROR)
 
 from constants import (
     TILES_DIR, NN_MODEL_PATH, FEN_CHARS, USE_GRAYSCALE, DETECT_CORNERS
@@ -112,7 +115,7 @@ def predict_tile(tile_img_data):
 
         Returns a tuple of (predicted FEN char, confidence)
     """
-    probabilities = list(model.predict(np.array([tile_img_data]))[0])
+    probabilities = list(model.predict(np.array([tile_img_data]), verbose=0)[0])
     max_probability = max(probabilities)
     i = probabilities.index(max_probability)
     return (FEN_CHARS[i], max_probability)
