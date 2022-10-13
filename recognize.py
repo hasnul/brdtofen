@@ -23,7 +23,7 @@ from chessboard_image import get_chessboard_tiles
 OUT_FILE = "debug.html"
 
 
-def _chessboard_tiles_img_data(chessboard_img_path, options={}):
+def _chessboard_tiles_img_data(chessboard_img_path):
     """ Given a file path to a chessboard PNG image, returns a
         size-64 array of 32x32 tiles representing each square of a chessboard
     """
@@ -81,46 +81,33 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
         f.write(html)
 
 
-def predict_chessboard(chessboard_img_path, options={}):
+def predict_chessboard(chessboard_img_path):
     """ Given a file path to a chessboard PNG image,
         Returns a FEN string representation of the chessboard
     """
-    if not options.quiet:
-        print("Predicting chessboard {}".format(chessboard_img_path))
-    img_data_list = _chessboard_tiles_img_data(chessboard_img_path, options)
+    
+    img_data_list = _chessboard_tiles_img_data(chessboard_img_path)
+    model = models.load_model(NN_MODEL_PATH)
+
     predictions = []
     confidence = 1
     for i in range(64):
         # a8, b8 ... g1, h1
         tile_img_data = img_data_list[i]
-        (fen_char, probability) = predict_tile(tile_img_data)
-        if not options.quiet:
-            print((fen_char, probability))
+
+        probabilities = list(model.predict(np.array([tile_img_data]), verbose=3)[0])
+        max_probability = max(probabilities)
+        p = probabilities.index(max_probability)
+        fen_char, probability = FEN_CHARS[p], max_probability
         predictions.append((fen_char, probability))
+
     predicted_fen = compressed_fen(
-        '/'.join(
-            [''.join(r) for r in np.reshape([p[0] for p in predictions], [8, 8])]
-        )
+        '/'.join([''.join(r) for r in np.reshape([p[0] for p in predictions], [8, 8])])
     )
     confidence = reduce(lambda x,y: x*y, [p[1] for p in predictions])
-    _save_output_html(chessboard_img_path, predicted_fen, [p[1] for p in predictions], confidence)
+    #_save_output_html(chessboard_img_path, predicted_fen, [p[1] for p in predictions], confidence)
     
-    if not options.quiet:
-        print("Saved {} prediction to {}".format(chessboard_img_path, OUT_FILE))
-
     return {"file": os.path.basename(chessboard_img_path), "confidence": confidence, "fen": predicted_fen}
-
-
-def predict_tile(tile_img_data):
-    """ Given the image data of a tile, try to determine what piece
-        is on the tile, or if it's blank.
-
-        Returns a tuple of (predicted FEN char, confidence)
-    """
-    probabilities = list(model.predict(np.array([tile_img_data]), verbose=0)[0])
-    max_probability = max(probabilities)
-    i = probabilities.index(max_probability)
-    return (FEN_CHARS[i], max_probability)
 
 
 if __name__ == '__main__':
@@ -136,12 +123,6 @@ if __name__ == '__main__':
     if not args.quiet:
         print('Tensorflow {}'.format(tf.version.VERSION))
 
-    model = models.load_model(NN_MODEL_PATH)
-
-    # tile_img_path = glob(TILES_DIR + '/*/*.png')[0]
-    # print(tile_img_path)
-    # print(predict_tile(image_data(tile_img_path)))
-
     if len(sys.argv) > 1:
 
         with open(OUT_FILE, "w") as f:
@@ -149,5 +130,4 @@ if __name__ == '__main__':
 
         image_path = os.path.expanduser(args.image_path)
         for chessboard_image_path in sorted(glob(image_path)):
-            print(predict_chessboard(chessboard_image_path, args))
-
+            print(predict_chessboard(chessboard_image_path))
