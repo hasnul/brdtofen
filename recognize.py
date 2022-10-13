@@ -11,8 +11,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import tensorflow as tf
 from tensorflow.keras import models
 import numpy as np
-import logging
-tf.get_logger().setLevel(logging.ERROR)
 
 from constants import (
     TILES_DIR, NN_MODEL_PATH, FEN_CHARS, USE_GRAYSCALE, DETECT_CORNERS
