@@ -3,7 +3,6 @@
 import sys
 from glob import glob
 from io import BytesIO
-from functools import reduce
 from multiprocessing import Pool
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -90,25 +89,16 @@ def predict_chessboard(chessboard_img_path):
     img_data_list = _chessboard_tiles_img_data(chessboard_img_path)
     model = models.load_model(NN_MODEL_PATH)
 
-    predictions = []
-    confidence = 1
-    for i in range(64):
-        # a8, b8 ... g1, h1
-        tile_img_data = img_data_list[i]
-
-        probabilities = list(model.predict(np.array([tile_img_data]), verbose=3)[0])
-        max_probability = max(probabilities)
-        p = probabilities.index(max_probability)
-        fen_char, probability = FEN_CHARS[p], max_probability
-        predictions.append((fen_char, probability))
-
-    predicted_fen = compressed_fen(
-        '/'.join([''.join(r) for r in np.reshape([p[0] for p in predictions], [8, 8])])
-    )
-    confidence = reduce(lambda x,y: x*y, [p[1] for p in predictions])
+    result = model.predict(np.array(img_data_list), batch_size=64, verbose=0)
+    max_probabilities = np.max(result, axis=1)
+    confidence = np.prod(max_probabilities)
+    fen_indices = np.argmax(result, axis=1)
+    raw_fen = "".join(list(map(lambda c: FEN_CHARS[c], fen_indices)))
+    split_fen = "/".join(raw_fen[i:i+8] for i in range(0, len(raw_fen), 8))
+    fen = compressed_fen(split_fen)
     
     return {"file": os.path.basename(chessboard_img_path), "confidence": confidence, 
-            "tile_prob": predictions, "fen": predicted_fen}
+            "tile_prob": max_probabilities, "fen": fen}
 
 
 if __name__ == '__main__':
@@ -131,14 +121,16 @@ if __name__ == '__main__':
 
         image_path = os.path.expanduser(args.image_path)
         paths = [path for path in glob(image_path)]
+
         with Pool() as pool:
             results = pool.imap_unordered(predict_chessboard, paths)
 
             for r in results:
                 confidence = r['confidence']
                 fen = r['fen']
-                print(f"File: {r['file']}, confidence: {confidence:0.08f} fen: {fen}")
+                file = r['file']
+                print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}"}}')
 
                 img = os.path.join('data', r['file'])
             
-                _save_output_html(img, fen, [t[1] for t in r['tile_prob']], confidence)
+                _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)

@@ -6,6 +6,5 @@ __pycache__
 *.html
 *.zip
 model.tf
-images/chessboards
-images/tiles
+images
 data
