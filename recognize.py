@@ -91,23 +91,48 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
 
 
 def predict_chessboard(img_paths):
-    """ Given a file path to a chessboard PNG image,
-        Returns a FEN string representation of the chessboard
-    """
     
-    img_data_list = _chessboard_tiles_img_data(img_paths)
-    model = models.load_model(NN_MODEL_PATH)
+    img_data_list = []
+    for p in img_paths:
+        img_data_list.extend(_chessboard_tiles_img_data(p))
 
+    model = models.load_model(NN_MODEL_PATH)
     result = model.predict(np.array(img_data_list), batch_size=64, verbose=0)
-    max_probabilities = np.max(result, axis=1)
-    confidence = np.prod(max_probabilities)
-    fen_indices = np.argmax(result, axis=1)
-    raw_fen = "".join(list(map(lambda c: FEN_CHARS[c], fen_indices)))
+    result = np.reshape(result, (len(img_paths), 64, len(FEN_CHARS)))
+    max_probabilities = np.max(result, axis=2)
+    confidence = np.prod(max_probabilities, axis=1)
+    fen_indices = np.argmax(result, axis=2)
+
+    fens = [makefen_from_indices(indices) for indices in fen_indices]
+
+    return [{"file": os.path.basename(img_paths[i]), "confidence": confidence[i],
+            "tile_prob": max_probabilities[i], "fen": fens[i]}
+            for i in range(len(img_paths))]
+
+
+def makefen_from_indices(indices):
+    raw_fen = "".join(list(map(lambda c: FEN_CHARS[c], indices)))
     split_fen = "/".join(raw_fen[i:i+8] for i in range(0, len(raw_fen), 8))
-    fen = compressed_fen(split_fen)
-    
-    return {"file": os.path.basename(img_paths), "confidence": confidence, 
-            "tile_prob": max_probabilities, "fen": fen}
+    return compressed_fen(split_fen)
+
+
+def predict_batch():
+    # TODO: I just put this here. It doesn't do anything. This is probably bad "form".
+    # Idea: If the number of requested predictions exceed N, then unleash the cores
+    # What is N?
+    return
+
+    with Pool() as pool:
+        results = pool.imap_unordered(predict_chessboard, paths)
+
+        for r in results:
+            confidence = r['confidence']
+            fen = r['fen']
+            file = r['file']
+            print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}"}}')
+
+            img = os.path.join('data', r['file'])
+            _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
 
 
 if __name__ == '__main__':
@@ -129,17 +154,12 @@ if __name__ == '__main__':
             f.write('<link rel="stylesheet" href="./web/style.css" />')
 
         image_path = os.path.expanduser(args.image_path)
-        paths = [path for path in glob(image_path)]
-
-        with Pool() as pool:
-            results = pool.imap_unordered(predict_chessboard, paths)
-
-            for r in results:
-                confidence = r['confidence']
-                fen = r['fen']
-                file = r['file']
-                print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}"}}')
-
-                img = os.path.join('data', r['file'])
-            
-                _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
+        paths = [path for path in sorted(glob(image_path))]
+        result = predict_chessboard(paths)
+        for r in result:
+            confidence = r['confidence']
+            fen = r['fen']
+            file = r['file']
+            print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}"}}')
+            img = os.path.join('data', r['file'])
+            _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
