@@ -26,6 +26,13 @@ def transform(img, method):
     if (method == "rotate"):
         return rotate(img)
 
+    # Might consider other transforms such as
+    # - shear
+    # - translation
+    # - fractional scaling (effectively creating a border on one or more sides)
+    # - convex/concave deformations or warping
+    # - pincushion/barrel distortion
+
     raise f"Unknown transform method: {method}"
 
 
