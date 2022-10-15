@@ -18,26 +18,35 @@ from constants import (
 from utils import compressed_fen
 from train import image_data
 from chessboard_finder import get_chessboard_corners
-from chessboard_image import get_chessboard_tiles
+from chessboard_image import _get_resized_chessboard
 
 OUT_FILE = "debug.html"
+
+BRDSIZE = 256
+SQSIZE = BRDSIZE // 8
+assert (BRDSIZE % 8 == 0)
+NUMCHAN = 3
 
 
 def _chessboard_tiles_img_data(chessboard_img_path):
     """ Given a file path to a chessboard PNG image, returns a
-        size-64 array of 32x32 tiles representing each square of a chessboard
+        size-64 list of 32x32 tiles representing each square of a chessboard
     """
-    n_channels = 1 if USE_GRAYSCALE else 3
-    tiles = get_chessboard_tiles(chessboard_img_path, use_grayscale=USE_GRAYSCALE)
-    img_data_list = []
-    for i in range(64):
-        buf = BytesIO()
-        tiles[i].save(buf, format='PNG')
-        img_data = tf.image.decode_image(buf.getvalue(), channels=n_channels)
-        img_data = tf.image.convert_image_dtype(img_data, tf.float32)
-        img_data = tf.image.resize(img_data, [32, 32])
-        img_data_list.append(img_data)
-    return img_data_list
+    board = _get_resized_chessboard(chessboard_img_path)
+    buf = BytesIO()
+    board.save(buf, format='PNG')
+    img_data = tf.image.decode_image(buf.getvalue(), channels=NUMCHAN)
+
+    if USE_GRAYSCALE:
+        # The RGB weights are the same as the ones used in
+        # get_chessboard_tiles(). See source code of the rgb_to_grayscale method.
+        img_data = tf.image.rgb_to_grayscale(img_data)
+
+    img_data = tf.image.convert_image_dtype(img_data, tf.float32)
+
+    return [img_data[r:r+SQSIZE, c:c+SQSIZE]
+                     for r in range(0, BRDSIZE, SQSIZE)
+                     for c in range(0, BRDSIZE, SQSIZE)]
 
 
 def _confidence_color(confidence):
@@ -81,12 +90,12 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
         f.write(html)
 
 
-def predict_chessboard(chessboard_img_path):
+def predict_chessboard(img_paths):
     """ Given a file path to a chessboard PNG image,
         Returns a FEN string representation of the chessboard
     """
     
-    img_data_list = _chessboard_tiles_img_data(chessboard_img_path)
+    img_data_list = _chessboard_tiles_img_data(img_paths)
     model = models.load_model(NN_MODEL_PATH)
 
     result = model.predict(np.array(img_data_list), batch_size=64, verbose=0)
@@ -97,7 +106,7 @@ def predict_chessboard(chessboard_img_path):
     split_fen = "/".join(raw_fen[i:i+8] for i in range(0, len(raw_fen), 8))
     fen = compressed_fen(split_fen)
     
-    return {"file": os.path.basename(chessboard_img_path), "confidence": confidence, 
+    return {"file": os.path.basename(img_paths), "confidence": confidence, 
             "tile_prob": max_probabilities, "fen": fen}
 
 
