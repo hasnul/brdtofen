@@ -11,6 +11,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import tensorflow as tf
 from tensorflow.keras import models
 import numpy as np
+from termcolor import colored
 
 from constants import (
     TILES_DIR, NN_MODEL_PATH, FEN_CHARS, USE_GRAYSCALE, DETECT_CORNERS
@@ -126,13 +127,41 @@ def predict_batch():
         results = pool.imap_unordered(predict_chessboard, paths)
 
         for r in results:
-            confidence = r['confidence']
-            fen = r['fen']
-            file = r['file']
-            print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}"}}')
+            report(r)
 
-            img = os.path.join('data', r['file'])
-            _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
+
+def report(r):
+    confidence = r['confidence']
+    fen = r['fen']
+    file = r['file']
+    v = validate_fen(fen)
+    c = colored(v, 'green') if v == "OK" else colored(v, 'red')
+    print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}", "status": "{c}"}}')
+    img = os.path.join('data', r['file'])
+    _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
+
+
+# Limits on piece counts for each side
+# -- this will flag some compositions and unusual situations as bad
+KINGS = 1
+PAWNS = 8
+KNIGHTS = 2
+ROOKS = 2
+BISHOPS = 2
+QUEENS = 2  # yes two
+
+def validate_fen(fen):
+    limits = [PAWNS, KNIGHTS, BISHOPS, ROOKS, QUEENS, KINGS]
+    fenchar = "pnbrqk"
+
+    for i, c in enumerate(fenchar):
+        if (fen.count(c) > limits[i] or fen.count(c.upper()) > limits[i]):
+            return "BAD"
+
+    if (fen.count('k') == 0 or fen.count('K') == 0):
+        return "BAD"
+
+    return "OK"
 
 
 if __name__ == '__main__':
@@ -157,9 +186,4 @@ if __name__ == '__main__':
         paths = [path for path in sorted(glob(image_path))]
         result = predict_chessboard(paths)
         for r in result:
-            confidence = r['confidence']
-            fen = r['fen']
-            file = r['file']
-            print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}"}}')
-            img = os.path.join('data', r['file'])
-            _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
+            report(r)
