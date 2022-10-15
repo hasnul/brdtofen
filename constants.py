@@ -16,3 +16,5 @@ USE_GRAYSCALE = True
 
 # Where neural network model/weights are stored
 NN_MODEL_PATH = './nn/model.tf'
+
+TRANSFORM_DIR = './images/transform'
