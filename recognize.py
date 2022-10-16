@@ -125,12 +125,15 @@ def makefen_from_indices(indices):
     return compressed_fen(split_fen)
 
 
-def report(r):
+def report(r, color=False):
     confidence = r['confidence']
     fen = r['fen']
     file = r['file']
     v = validate_fen(fen)
-    c = colored(v, 'green') if v == "OK" else colored(v, 'red')
+    if color:
+        c = colored(v, 'green') if v == "OK" else colored(v, 'red')
+    else:
+        c = v
     print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}", "status": "{c}"}}')
     img = os.path.join('data', r['file'])
     _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
@@ -164,6 +167,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-q", "--quiet", help="Only print recognized FEN position",
                         action="store_true")
+    parser.add_argument("-c", "--color", help="Color the status text",
+                        action="store_true")
     parser.add_argument("-d", "--debug", help="Saves debug output to debug.html",
                         action="store_true")
     parser.add_argument("image_path", help="Path/glob to PNG chessboard image(s)")
@@ -181,4 +186,4 @@ if __name__ == '__main__':
         paths = [path for path in sorted(glob(image_path))]
         result = predict_chessboard(paths, args.quiet)
         for r in result:
-            report(r)
+            report(r, color=args.color)
