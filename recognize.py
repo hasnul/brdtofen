@@ -30,20 +30,17 @@ NUMCHAN = 3
 
 
 def _chessboard_tiles_img_data(chessboard_img_path):
-    """ Given a file path to a chessboard PNG image, returns a
-        size-64 list of 32x32 tiles representing each square of a chessboard
+    """ Given a file path to a chessboard image, returns a
+        size-64 list of 32x32xchan tensors representing each square.
     """
-    board = _get_resized_chessboard(chessboard_img_path)
-    buf = BytesIO()
-    board.save(buf, format='PNG')
-    img_data = tf.image.decode_image(buf.getvalue(), channels=NUMCHAN)
+    board = tf.io.read_file(chessboard_img_path)
+    img_data = tf.image.decode_image(board, channels=NUMCHAN)  # what happens if PNG?
+    img_data = tf.image.resize(img_data, [BRDSIZE, BRDSIZE])
 
     if USE_GRAYSCALE:
         # The RGB weights are the same as the ones used in
         # get_chessboard_tiles(). See source code of the rgb_to_grayscale method.
         img_data = tf.image.rgb_to_grayscale(img_data)
-
-    img_data = tf.image.convert_image_dtype(img_data, tf.float32)
 
     return [img_data[r:r+SQSIZE, c:c+SQSIZE]
                      for r in range(0, BRDSIZE, SQSIZE)
@@ -91,14 +88,25 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
         f.write(html)
 
 
-def predict_chessboard(img_paths):
+def predict_chessboard(img_paths, quiet):
     
     img_data_list = []
-    for p in img_paths:
+    for i, p in enumerate(img_paths):
+        if not quiet:
+            print(f"Reading file {i}/{len(img_paths)} : {p}\r", end="")
         img_data_list.extend(_chessboard_tiles_img_data(p))
 
+    if not quiet:
+        print()
+        print("Loading model ...")
     model = models.load_model(NN_MODEL_PATH)
+
+    if not quiet:
+        print("Running prediction ...")
     result = model.predict(np.array(img_data_list), batch_size=64, verbose=0)
+
+    if not quiet:
+        print("Processing results ...")
     result = np.reshape(result, (len(img_paths), 64, len(FEN_CHARS)))
     max_probabilities = np.max(result, axis=2)
     confidence = np.prod(max_probabilities, axis=1)
@@ -171,6 +179,6 @@ if __name__ == '__main__':
 
         image_path = os.path.expanduser(args.image_path)
         paths = [path for path in sorted(glob(image_path))]
-        result = predict_chessboard(paths)
+        result = predict_chessboard(paths, args.quiet)
         for r in result:
             report(r)
