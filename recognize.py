@@ -117,19 +117,6 @@ def makefen_from_indices(indices):
     return compressed_fen(split_fen)
 
 
-def predict_batch():
-    # TODO: I just put this here. It doesn't do anything. This is probably bad "form".
-    # Idea: If the number of requested predictions exceed N, then unleash the cores
-    # What is N?
-    return
-
-    with Pool() as pool:
-        results = pool.imap_unordered(predict_chessboard, paths)
-
-        for r in results:
-            report(r)
-
-
 def report(r):
     confidence = r['confidence']
     fen = r['fen']
