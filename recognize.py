@@ -11,6 +11,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 import tensorflow as tf
 from tensorflow.keras import models
 import numpy as np
+import tqdm
 from termcolor import colored
 
 from constants import (
@@ -91,13 +92,16 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
 def predict_chessboard(img_paths, quiet):
     
     img_data_list = []
-    for i, p in enumerate(img_paths):
+    with Pool() as pool:
         if not quiet:
-            print(f"Reading file {i+1}/{len(img_paths)} : {p}\r", end="")
-        img_data_list.extend(_chessboard_tiles_img_data(p))
+            print("Processing data ...")
+            for squares in tqdm.tqdm(pool.imap(_chessboard_tiles_img_data, img_paths), total=len(img_paths)):
+                img_data_list.extend(squares)
+        else:
+            for squares in pool.imap(_chessboard_tiles_img_data, img_paths):
+                img_data_list.extend(squares)
 
     if not quiet:
-        print()
         print("Loading model ...")
     model = models.load_model(NN_MODEL_PATH)
 
