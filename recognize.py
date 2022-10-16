@@ -93,7 +93,7 @@ def predict_chessboard(img_paths, quiet):
     img_data_list = []
     for i, p in enumerate(img_paths):
         if not quiet:
-            print(f"Reading file {i}/{len(img_paths)} : {p}\r", end="")
+            print(f"Reading file {i+1}/{len(img_paths)} : {p}\r", end="")
         img_data_list.extend(_chessboard_tiles_img_data(p))
 
     if not quiet:
