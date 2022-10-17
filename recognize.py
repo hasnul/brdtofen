@@ -184,6 +184,8 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
 
+        import time
+        start = time.time()
         with open(OUT_FILE, "w") as f:
             f.write('<link rel="stylesheet" href="./web/style.css" />')
 
@@ -200,3 +202,7 @@ if __name__ == '__main__':
         good = (total - bad)/total
         print()
         print(f"OK = {total - bad}/{total} === {good*100:.2f}% (optimistic)")
+
+        end = time.time()
+        print(f"Time taken = {end - start:.3f} seconds")
+        print(f"Prediction rate = {total/(end - start):.0f} images per second")
