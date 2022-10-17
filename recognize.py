@@ -133,15 +133,16 @@ def report(r, color=False):
     confidence = r['confidence']
     fen = r['fen']
     file = r['file']
-    v = validate_fen(fen)
+    quality = validate_fen(fen)
     if color:
-        c = colored(v, 'green') if v == "OK" else colored(v, 'red')
+        c = colored(quality, 'green') if quality == "OK" else colored(quality, 'red')
     else:
-        c = v
+        c = quality
     print(f'{{"file": "{file}", "confidence": {confidence:0.08f}, "fen": "{fen}", "status": "{c}"}}')
     img = os.path.join('data', r['file'])
     _save_output_html(img, fen, [t for t in r['tile_prob']], confidence)
 
+    return quality
 
 # Limits on piece counts for each side
 # -- this will flag some compositions and unusual situations as bad
@@ -189,5 +190,13 @@ if __name__ == '__main__':
         image_path = os.path.expanduser(args.image_path)
         paths = [path for path in sorted(glob(image_path))]
         result = predict_chessboard(paths, args.quiet)
+        bad = 0
+        total = 0
         for r in result:
-            report(r, color=args.color)
+            if report(r, color=args.color) == "BAD":
+                bad += 1
+            total += 1
+
+        good = (total - bad)/total
+        print()
+        print(f"OK = {total - bad}/{total} === {good*100:.2f}% (optimistic)")
