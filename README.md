@@ -1,4 +1,4 @@
-# Chessboard recognizer
+# Brdtofen
 
 Uses a convolutional neural network to recognize the positions of pieces
 on a chessboard image.
