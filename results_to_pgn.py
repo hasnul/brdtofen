@@ -5,17 +5,16 @@ import json
 import chess
 
 
-def header(book_title, white, black, result, num, confidence, fen, pgn):
+def header(book_title, white, black, result, filename, confidence, fen, pgn):
     print(f'[Event "{book_title}"]', file=pgn)
-    print(f'[Site "Book"]', file=pgn)
+    print(f'[Site "Book - {filename}"]', file=pgn)
     print(f'[Date "2003.01.01"]', file=pgn)
     print(f'[Round "1"]', file=pgn)
     print(f'[White "{white}"]', file=pgn)
     print(f'[Black "{black}"]', file=pgn)
     print(f'[Result "{result}"]', file=pgn)
-    print(f'[Num "{num}"]', file=pgn)
     print(f'[FEN "{fen}"]', file=pgn)
-    print(f'[Confidence "{confidence:.3f}"]', file=pgn)
+    print(f'[Confidence "{confidence:.6f}"]', file=pgn)
     print(file=pgn)
     print('*', file=pgn)
     print(file=pgn)
@@ -42,17 +41,19 @@ if __name__ == "__main__":
     with open(args.results, mode='r') as result, open(args.pgn, mode='w') as pgn:
         for line in result:
             r = json.loads(line.strip())
-            if r['status'] == "BAD":
-                status_BAD += 1
-                continue
-            num = int(r['file'][:4])
+            filename = r['file']
             confidence = r['confidence']
             fen = r['fen']
-            try:
-                b = chess.Board(fen)
-                header(book, white, black, game_result, num, confidence, b.fen(), pgn)
-            except:
-                skipped += 1
+            if r['status'] == "BAD":
+                status_BAD += 1
+                fen = " ".join([fen, "w - - 0 1"])
+                header(book, "BAD", "BAD", game_result, filename, confidence, fen, pgn)
+            else:
+                try:
+                    b = chess.Board(fen)
+                    header(book, white, black, game_result, filename, confidence, b.fen(), pgn)
+                except:
+                    skipped += 1
 
     print(f"BAD = {status_BAD}")
     print(f"Skipped = {skipped}")
