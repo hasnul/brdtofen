@@ -15,6 +15,9 @@ To get the chessboard position in [FEN](https://en.wikipedia.org/wiki/Forsyth%E2
 
 `3rkb1r/1pp2ppp/2n1q1n1/p3Pb2/2Pp4/PN3NB1/1P1QPPPP/3RKB1R`
 
+## Demo
+![demo](demo/demo.gif)
+
 ## Sample results
 
 Chess puzzle from a book:
