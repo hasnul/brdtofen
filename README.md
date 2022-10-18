@@ -17,6 +17,8 @@ To get the chessboard position in [FEN](https://en.wikipedia.org/wiki/Forsyth%E2
 
 ## Demo
 ![demo](demo/demo.gif)
+Demo ran on a Ryzen 3700X (8 cores) with 1205 images stored on an SSD.
+Prediction rate is average time taken to process the batch.
 
 ## Sample results
 
