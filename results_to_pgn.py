@@ -2,7 +2,8 @@
 
 import argparse
 import json
-import chess
+# TODO: Either replace this library with MIT licensed lib or move this file to its own GPL-licensed repo
+# import chess
 
 
 def header(book_title, white, black, result, filename, confidence, fen, pgn):
@@ -50,8 +51,9 @@ if __name__ == "__main__":
                 header(book, "BAD", "BAD", game_result, filename, confidence, fen, pgn)
             else:
                 try:
-                    b = chess.Board(fen)
-                    header(book, white, black, game_result, filename, confidence, b.fen(), pgn)
+                    # TODO: See todo note at the top
+                    # b = chess.Board(fen)
+                    header(book, white, black, game_result, filename, confidence, fen, pgn)
                 except:
                     skipped += 1
 
