@@ -19,6 +19,10 @@ To get the chessboard position in [FEN](https://en.wikipedia.org/wiki/Forsyth%E2
 ![demo](demo/demo.gif)
 Demo ran on a Ryzen 3700X (8 cores) with 1205 images stored on an SSD.
 Prediction rate is average time taken to process the batch.
+Each image is approximately 800x800 square pixels in dimension -- about 0.68 MB each.
+The neural network trained for the demo is provided in the file 'nndemo.tar.xz' in
+the 'demo' directory. This tar should be expanded from the root of the repo.
+Any model living in the folder 'model.tf' under 'nn' will probably be borked by the expansion.
 
 ## Sample results
 
