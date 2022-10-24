@@ -44,9 +44,9 @@ def _chessboard_tiles_img_data(chessboard_img_path):
         # get_chessboard_tiles(). See source code of the rgb_to_grayscale method.
         img_data = tf.image.rgb_to_grayscale(img_data)
 
-    return [img_data[r:r+SQSIZE, c:c+SQSIZE]
+    return np.array([img_data[r:r+SQSIZE, c:c+SQSIZE]
                      for r in range(0, BRDSIZE, SQSIZE)
-                     for c in range(0, BRDSIZE, SQSIZE)]
+                     for c in range(0, BRDSIZE, SQSIZE)])
 
 
 def _confidence_color(confidence):
@@ -90,18 +90,22 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
         f.write(html)
 
 
-@profile
+#@profile
 def predict_chessboard(img_paths, quiet):
     
-    img_data_list = []
     with Pool() as pool:
+        CHUNKSIZE = 2
+        imap_iter = pool.imap(_chessboard_tiles_img_data, img_paths, CHUNKSIZE)
         if not quiet:
             print("Processing data ...")
-            for squares in tqdm.tqdm(pool.imap(_chessboard_tiles_img_data, img_paths), total=len(img_paths)):
-                img_data_list.extend(squares)
+            tqdm_iter = tqdm.tqdm(imap_iter, total=len(img_paths))
+            squares_iter = tqdm_iter
         else:
-            for squares in pool.imap(_chessboard_tiles_img_data, img_paths):
-                img_data_list.extend(squares)
+            squares_iter = imap_iter
+
+        img_data_list = []
+        for sq in squares_iter:
+            img_data_list.extend(sq)
 
     if not quiet:
         print("Loading model ...")
@@ -109,7 +113,10 @@ def predict_chessboard(img_paths, quiet):
 
     if not quiet:
         print("Running prediction ...")
-    result = model.predict(np.array(img_data_list), batch_size=64, verbose=0)
+        verbose = 1
+    else:
+        verbose = 0
+    result = model.predict(np.array(img_data_list), batch_size=64, verbose=verbose)
 
     if not quiet:
         print("Processing results ...")
