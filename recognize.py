@@ -13,7 +13,6 @@ from tensorflow.keras import models
 import numpy as np
 import tqdm
 from termcolor import colored
-from memory_profiler import profile
 
 from constants import (
     TILES_DIR, NN_MODEL_PATH, FEN_CHARS, USE_GRAYSCALE, DETECT_CORNERS
@@ -24,7 +23,7 @@ from chessboard_finder import get_chessboard_corners
 from chessboard_image import _get_resized_chessboard
 
 OUT_FILE = "debug.html"
-
+MEM_LIMIT = 32 * 1024 * 1024  # 32 MBytes; this is NOT a "limit" on mem used by prog
 BRDSIZE = 256
 SQSIZE = BRDSIZE // 8
 assert (BRDSIZE % 8 == 0)
@@ -90,46 +89,76 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
         f.write(html)
 
 
-#@profile
 def predict_chessboard(img_paths, quiet):
-    
+
+    total_size = 0
+    for path in img_paths:
+        total_size += os.path.getsize(path)
+
+    # TODO: What if total size < MEM_LIMIT or is not that 'big'?
+    # call do_the_whole_batch()
+    # return
+
+    # Assuming a more or less uniform image file size
+    batches = total_size//MEM_LIMIT + 1 if total_size % MEM_LIMIT != 0 else total_size//MEM_LIMIT
+    batch_size = len(img_paths)//batches + 1 if len(img_paths) % batches != 0 else len(img_paths)//batches
+
+    CHUNKSIZE = 2
+    batch_result = []
     with Pool() as pool:
-        CHUNKSIZE = 2
-        imap_iter = pool.imap(_chessboard_tiles_img_data, img_paths, CHUNKSIZE)
         if not quiet:
-            print("Processing data ...")
-            tqdm_iter = tqdm.tqdm(imap_iter, total=len(img_paths))
-            squares_iter = tqdm_iter
-        else:
-            squares_iter = imap_iter
+            print("Loading model ...")
+        model = models.load_model(NN_MODEL_PATH)
+        for batch in range(batches):
+            if batch != batches - 1:
+                batch_paths = img_paths[batch*batch_size: (batch+1)*batch_size]
+            else:
+                batch_paths = img_paths[batch*batch_size:]
+            imap_iter = pool.imap(_chessboard_tiles_img_data, batch_paths, CHUNKSIZE)
+            if not quiet:
+                print(f"Processing batch {batch+1}/{batches} ...")
+                tqdm_iter = tqdm.tqdm(imap_iter, total=len(batch_paths))
+                squares_iter = tqdm_iter
+            else:
+                squares_iter = imap_iter
 
-        img_data_list = []
-        for sq in squares_iter:
-            img_data_list.extend(sq)
+            #img_data_list = []
+            if batch != batches - 1:
+                img_data = np.zeros((batch_size*64, SQSIZE, SQSIZE, 1))
+            else:
+                if len(img_paths) % batches != 0:
+                    last_batch = len(img_paths) - (batches - 1)*batch_size
+                else:
+                    last_batch = batch_size
+                img_data = np.zeros((last_batch*64, SQSIZE, SQSIZE, 1))
+            for i, sq in enumerate(squares_iter):
+                #img_data_list.extend(sq)
+                img_data[i*64:(i+1)*64, :, :, 0] = np.moveaxis(sq, -1, 0)
 
-    if not quiet:
-        print("Loading model ...")
-    model = models.load_model(NN_MODEL_PATH)
+            if not quiet:
+                print(f"Running prediction for batch {batch+1}/{batches} ...")
+                verbose = 1
+            else:
+                verbose = 0
 
-    if not quiet:
-        print("Running prediction ...")
-        verbose = 1
-    else:
-        verbose = 0
-    result = model.predict(np.array(img_data_list), batch_size=64, verbose=verbose)
+            result = model.predict(img_data, batch_size=32, verbose=verbose)
+            #result = model(np.array(img_data_list))
 
-    if not quiet:
-        print("Processing results ...")
-    result = np.reshape(result, (len(img_paths), 64, len(FEN_CHARS)))
-    max_probabilities = np.max(result, axis=2)
-    confidence = np.prod(max_probabilities, axis=1)
-    fen_indices = np.argmax(result, axis=2)
+            if not quiet:
+                print("Processing results ...")
+            result = np.reshape(result, (len(batch_paths), 64, len(FEN_CHARS)))
 
-    fens = [makefen_from_indices(indices) for indices in fen_indices]
+            max_probabilities = np.max(result, axis=2)
+            confidence = np.prod(max_probabilities, axis=1)
+            fen_indices = np.argmax(result, axis=2)
 
-    return [{"file": os.path.basename(img_paths[i]), "confidence": confidence[i],
-            "tile_prob": max_probabilities[i], "fen": fens[i]}
-            for i in range(len(img_paths))]
+            fens = [makefen_from_indices(indices) for indices in fen_indices]
+
+            batch_result.extend([{"file": os.path.basename(batch_paths[i]), "confidence": confidence[i],
+                                "tile_prob": max_probabilities[i], "fen": fens[i]}
+                                for i in range(len(batch_paths))])
+
+    return batch_result
 
 
 def makefen_from_indices(indices):
