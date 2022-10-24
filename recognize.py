@@ -13,6 +13,7 @@ from tensorflow.keras import models
 import numpy as np
 import tqdm
 from termcolor import colored
+from memory_profiler import profile
 
 from constants import (
     TILES_DIR, NN_MODEL_PATH, FEN_CHARS, USE_GRAYSCALE, DETECT_CORNERS
@@ -89,6 +90,7 @@ def _save_output_html(chessboard_img_path, fen, predictions, confidence):
         f.write(html)
 
 
+@profile
 def predict_chessboard(img_paths, quiet):
     
     img_data_list = []
